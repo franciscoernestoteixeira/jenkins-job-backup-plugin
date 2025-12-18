@@ -1,4 +1,4 @@
-package io.jenkins.plugins.jobpack;
+package io.jenkins.plugins.jobbackup;
 
 import hudson.XmlFile;
 import jenkins.model.Jenkins;

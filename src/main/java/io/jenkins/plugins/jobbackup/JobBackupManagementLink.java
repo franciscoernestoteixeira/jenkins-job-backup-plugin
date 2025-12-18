@@ -1,4 +1,4 @@
-package io.jenkins.plugins.jobpack;
+package io.jenkins.plugins.jobbackup;
 
 import com.cloudbees.hudson.plugins.folder.Folder;
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -27,7 +27,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Extension
-public class JobPackManagementLink extends ManagementLink {
+public class JobBackupManagementLink extends ManagementLink {
 
     private final ExportService exportService = new ExportService();
     private final ImportSessionService importSessionService = new ImportSessionService();
