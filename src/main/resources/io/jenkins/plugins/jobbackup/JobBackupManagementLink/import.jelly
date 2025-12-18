@@ -15,7 +15,9 @@
         <l:main-panel>
             <l:app-bar title="Import"/>
 
-            <div style="margin-bottom: 1em;">Upload a ZIP archive to see the jobs and folders that could be imported into this Jenkins instance.</div>
+            <div style="margin-bottom: 1em;">Upload a ZIP archive to see the jobs and folders that could be imported
+                into this Jenkins instance.
+            </div>
 
             <f:form method="post" action="uploadZip" enctype="multipart/form-data">
                 <div style="margin-bottom: 2rem;">

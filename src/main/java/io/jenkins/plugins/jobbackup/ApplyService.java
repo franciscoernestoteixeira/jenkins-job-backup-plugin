@@ -1,7 +1,9 @@
 package io.jenkins.plugins.jobbackup;
 
 import com.cloudbees.hudson.plugins.folder.Folder;
-import hudson.model.*;
+import hudson.model.AbstractItem;
+import hudson.model.ItemGroup;
+import hudson.model.TopLevelItemDescriptor;
 import jenkins.model.Jenkins;
 import jenkins.model.ModifiableTopLevelItemGroup;
 
@@ -9,19 +11,38 @@ import javax.xml.transform.stream.StreamSource;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
 public class ApplyService {
 
+    /**
+     * Applies selected items from the uploaded ZIP.
+     * <p>
+     * Selection semantics (mirrors export):
+     * - If selection includes "A/B" treat it as a prefix and apply every configByFullName entry
+     * whose key == "A/B" OR startsWith("A/B/").
+     * - This makes apply robust even if the UI sends only folders or if older zips lack synthetic
+     * folder rows in the preview.
+     * <p>
+     * Apply order:
+     * - by depth ascending: folders first, then deeper items (jobs), to ensure parent folders exist.
+     */
     public Model.ApplyResult apply(List<String> fullNames, Map<String, Path> configByFullName) {
         var r = new Model.ApplyResult();
 
-        for (var fullName : fullNames) {
+        if (configByFullName == null || configByFullName.isEmpty()) {
+            r.failures.add(new Model.ApplyFailure("(zip)", "No config.xml entries found in uploaded ZIP"));
+            return r;
+        }
+
+        List<String> toApply = expandSelection(fullNames, configByFullName);
+
+        for (var fullName : toApply) {
             var cfg = configByFullName.get(fullName);
 
             if (cfg == null) {
+                // Should not happen after expandSelection, but keep safe
                 r.failures.add(new Model.ApplyFailure(fullName, "Missing config.xml in uploaded ZIP"));
                 continue;
             }
@@ -35,6 +56,54 @@ public class ApplyService {
         }
 
         return r;
+    }
+
+    private List<String> expandSelection(List<String> selected, Map<String, Path> configByFullName) {
+        // Normalize selection
+        List<String> sel = selected == null ? List.of() :
+                selected.stream()
+                        .filter(Objects::nonNull)
+                        .map(String::trim)
+                        .filter(s -> !s.isBlank())
+                        .distinct()
+                        .toList();
+
+        // If user selected nothing (should be blocked by controller), return empty
+        if (sel.isEmpty()) {
+            return List.of();
+        }
+
+        // Keys available in ZIP (these are the real apply targets)
+        List<String> keys = new ArrayList<>(configByFullName.keySet());
+
+        // Expand: include any key that equals selection or is under selection prefix
+        Set<String> expanded = new LinkedHashSet<>();
+
+        for (String s : sel) {
+            final String prefix = s.endsWith("/") ? s : (s + "/");
+
+            for (String k : keys) {
+                if (k.equals(s) || k.startsWith(prefix)) {
+                    expanded.add(k);
+                }
+            }
+        }
+
+        // Apply in depth order (parents first), then name
+        return expanded.stream()
+                .sorted(Comparator
+                        .comparingInt((String k) -> depthOf(k))
+                        .thenComparing(String::compareToIgnoreCase))
+                .collect(Collectors.toList());
+    }
+
+    private int depthOf(String fullName) {
+        if (fullName == null || fullName.isBlank()) return 0;
+        int depth = 0;
+        for (int i = 0; i < fullName.length(); i++) {
+            if (fullName.charAt(i) == '/') depth++;
+        }
+        return depth;
     }
 
     private void applyOne(String fullName, InputStream configXml) throws Exception {
@@ -88,7 +157,6 @@ public class ApplyService {
                     throw new IllegalStateException("Cannot create folder under: " + current.getClass());
                 }
 
-                // IMPORTANT: create via descriptor, not Folder.class
                 var created = mtlig.createProject(folderDescriptor, folderName, true);
 
                 if (!(created instanceof Folder f)) {
@@ -112,7 +180,6 @@ public class ApplyService {
     }
 
     private TopLevelItemDescriptor folderDescriptor() {
-        // CloudBees Folder provides the Folder descriptor as a TopLevelItemDescriptor
         var d = Jenkins.get().getDescriptorByType(Folder.DescriptorImpl.class);
 
         if (d == null) {

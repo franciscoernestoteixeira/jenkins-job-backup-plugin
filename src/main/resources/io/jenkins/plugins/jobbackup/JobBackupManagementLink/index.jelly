@@ -1,6 +1,14 @@
 <?jelly escape-by-default='true'?>
-<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form" xmlns:l="/lib/layout">
+<j:jelly xmlns:j="jelly:core"
+         xmlns:f="/lib/form"
+         xmlns:l="/lib/layout"
+         xmlns:st="jelly:stapler">
+
     <l:layout title="Job Backup &amp; Restore">
+
+        <!-- Load shared JS once for this view -->
+        <st:adjunct includes="io.jenkins.plugins.jobbackup.ui.jobbackup"/>
+
         <l:side-panel>
             <l:app-bar title="Job Backup &amp; Restore"/>
 
@@ -18,19 +26,41 @@
             <div style="margin-bottom: 1em;">Export selected jobs and folders into a ZIP archive.</div>
 
             <f:form method="post" action="exportZip">
-                <table class="jenkins-table">
+                <table class="jenkins-table" data-jobbackup-table="export">
                     <thead>
-                        <th class="jenkins-table__cell--tight"/>
-                        <th>Full name</th>
-                        <th>Type</th>
+                        <tr>
+                            <th class="jenkins-table__cell--tight">
+                                <!-- Select/Deselect all -->
+                                <input type="checkbox"
+                                       class="jobbackup-select-all"
+                                       aria-label="Select all"
+                                       onclick="jobBackup.selectAllFromHeader(this)"/>
+                            </th>
+                            <th>Full name</th>
+                            <th>Type</th>
+                        </tr>
                     </thead>
                     <tbody>
                         <j:forEach var="row" items="${it.allItems}">
-                            <tr>
+                            <tr data-id="${row.fullName}"
+                                data-parent-id="${row.parentFullName}"
+                                data-type="${row.folder ? 'folder' : 'job'}">
                                 <td class="jenkins-table__cell--tight">
-                                    <f:checkbox name="selected" value="${row.fullName}"/>
+                                    <f:checkbox name="selected"
+                                                value="${row.fullName}"
+                                                cssClass="jobbackup-row-check"
+                                                onclick="jobBackup.toggle(this)"/>
                                 </td>
-                                <td>${row.fullName}</td>
+                                <td>
+                                    <div style="padding-left: ${row.depth * 16}px; display: flex; align-items: center; gap: 6px;">
+                                        <span class="jobbackup-icon">
+                                            <l:icon
+                                                    src="${row.folder ? 'symbol-folder-outline' : 'symbol-document-text-outline'} plugin-ionicons-api"
+                                                    tooltip="${row.folder ? 'Folder' : 'Job'}"/>
+                                        </span>
+                                        ${row.leafName}
+                                    </div>
+                                </td>
                                 <td>${row.type}</td>
                             </tr>
                         </j:forEach>

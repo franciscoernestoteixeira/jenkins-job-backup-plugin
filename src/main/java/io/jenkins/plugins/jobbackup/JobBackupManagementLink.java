@@ -9,6 +9,7 @@ import hudson.model.ManagementLink;
 import hudson.model.TopLevelItem;
 import hudson.util.FormValidation;
 import jenkins.model.Jenkins;
+import org.antlr.v4.runtime.misc.NotNull;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.Stapler;
 import org.kohsuke.stapler.StaplerRequest;
@@ -77,21 +78,65 @@ public class JobBackupManagementLink extends ManagementLink {
     }
 
     // ----------------------------
-    // UI model
+    // Export
 
     public List<Model.ItemRow> getAllItems() {
         ensureAdmin();
 
-        return Jenkins.get().getAllItems(Item.class).stream()
+        // 1) Real items (jobs + real folders)
+        List<Model.ItemRow> realRows = Jenkins.get().getAllItems(Item.class).stream()
                 .filter(Objects::nonNull)
                 .filter(i -> (i instanceof TopLevelItem) || (i instanceof Folder) || (i instanceof AbstractItem))
                 .map(Model.ItemRow::from)
-                .sorted(Comparator.comparing(Model.ItemRow::getFullName, String.CASE_INSENSITIVE_ORDER))
+                .collect(Collectors.toList());
+
+        // 2) Synthetic folder rows for all ancestors (so user can click folder paths)
+        Map<String, Model.ItemRow> byFullName = new HashMap<>();
+
+        for (Model.ItemRow r : realRows) {
+            byFullName.put(r.getFullName(), r);
+
+            // add ancestors as Folder rows if missing
+            String p = r.getParentFullName();
+            while (p != null && !p.isBlank()) {
+                byFullName.putIfAbsent(p, Model.ItemRow.folder(p));
+                p = parentOf(p);
+            }
+        }
+
+        // 3) Sort in hierarchical (prefix) order: A/ < A/B/ < A/B/job1 < C/ < C/D < C/E ...
+        return byFullName.values().stream()
+                .sorted(itemRowComparator())
                 .collect(Collectors.toList());
     }
 
-    // ----------------------------
-    // Export
+    private static String parentOf(String fullName) {
+        if (fullName == null) return null;
+        int idx = fullName.lastIndexOf('/');
+        if (idx <= 0) return null;
+        return fullName.substring(0, idx);
+    }
+
+    private static Comparator<Model.ItemRow> itemRowComparator() {
+        return new Comparator<Model.ItemRow>() {
+            @Override
+            public int compare(Model.ItemRow a, Model.ItemRow b) {
+                int c = sortKey(a).compareToIgnoreCase(sortKey(b));
+                if (c != 0) return c;
+                return a.getFullName().compareToIgnoreCase(b.getFullName());
+            }
+        };
+    }
+
+    private static String sortKey(Model.ItemRow r) {
+        String name = (r.getFullName() == null) ? "" : r.getFullName();
+
+        // Folder as prefix path so it sorts before its children
+        if (r.isFolder() && !name.endsWith("/")) {
+            return name + "/";
+        }
+        return name;
+    }
 
     @RequirePOST
     public void doExportZip(StaplerRequest req, StaplerResponse rsp) throws IOException {
@@ -119,6 +164,7 @@ public class JobBackupManagementLink extends ManagementLink {
 
     // ----------------------------
     // Import: upload
+
     @RequirePOST
     public void doUploadZip(StaplerRequest req, StaplerResponse rsp) throws IOException, ServletException {
         ensureAdmin();
@@ -169,13 +215,54 @@ public class JobBackupManagementLink extends ManagementLink {
         var unzipDir = importSessionService.unzipDir(sessionId);
         var candidates = importSessionService.findCandidates(unzipDir);
 
-        return candidates.stream()
+        // Real rows from extracted items
+        List<Model.ImportCandidate> realRows = candidates.stream()
                 .map(c -> {
                     boolean exists = Jenkins.get().getItemByFullName(c.fullName()) != null;
                     return Model.ImportCandidate.from(c.fullName(), c.configXmlPath().toString(), exists);
                 })
-                .sorted(Comparator.comparing(Model.ImportCandidate::getFullName, String.CASE_INSENSITIVE_ORDER))
                 .collect(Collectors.toList());
+
+        // Add synthetic folders for all ancestors
+        Map<String, Model.ImportCandidate> byFullName = new HashMap<>();
+
+        for (Model.ImportCandidate r : realRows) {
+            byFullName.put(r.getFullName(), r);
+
+            String p = r.getParentFullName();
+            while (p != null && !p.isBlank()) {
+                boolean folderExists = Jenkins.get().getItemByFullName(p) != null;
+                byFullName.putIfAbsent(p, Model.ImportCandidate.folder(p, folderExists));
+                p = parentOf(p);
+            }
+        }
+
+        // Hierarchical prefix order
+        return byFullName.values().stream()
+                .sorted(importCandidateComparator())
+                .collect(Collectors.toList());
+    }
+
+    private static Comparator<Model.ImportCandidate> importCandidateComparator() {
+        return new Comparator<Model.ImportCandidate>() {
+            @Override
+            public int compare(Model.ImportCandidate a, Model.ImportCandidate b) {
+                int c = sortKey(a).compareToIgnoreCase(sortKey(b));
+                if (c != 0) return c;
+                return a.getFullName().compareToIgnoreCase(b.getFullName());
+            }
+        };
+    }
+
+    private static String sortKey(Model.ImportCandidate r) {
+        String name = (r.getFullName() == null) ? "" : r.getFullName();
+
+        // folders behave like prefix paths: "A/B/" sorts before "A/B/job1"
+        if (r.isFolder() && !name.endsWith("/")) {
+            return name + "/";
+        }
+
+        return name;
     }
 
     // ----------------------------
