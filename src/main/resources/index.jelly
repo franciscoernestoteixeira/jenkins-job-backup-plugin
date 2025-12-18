@@ -1,23 +1,31 @@
 <?jelly escape-by-default='true'?>
 <j:jelly xmlns:j="jelly:core">
     <div>
-        <h2>Job Backup &amp; Restore</h2>
-
         <p>
             Export selected jobs and folders into a ZIP archive and import them into this Jenkins instance.
         </p>
 
         <p>
-            Go to <b>Manage Jenkins → Job Backup &amp; Restore</b>.
+            Access via <b>Manage Jenkins → Job Backup &amp; Restore</b>.
         </p>
 
-        <j:set var="plugin"
-               value="${app.pluginManager.getPlugin('job-backup')}"/>
+        <p>
+            <j:set var="plugin" value="${app.pluginManager.getPlugin('job-backup')}"/>
 
-        <j:if test="${plugin != null}">
-            <p style="color:#666; font-size:90%;">
-                Version: <strong>${plugin.version}</strong>
-            </p>
-        </j:if>
+            <j:choose>
+                <j:when test="${plugin != null}">
+                    <a href="https://github.com/franciscoernestoteixeira/jenkins-job-backup-plugin/issues/new?title=Version%20${plugin.version}%20-%20"
+                       target="_blank" rel="noopener noreferrer">
+                        Report an issue with this plugin
+                    </a>
+                </j:when>
+                <j:otherwise>
+                    <a href="https://github.com/franciscoernestoteixeira/jenkins-job-backup-plugin/issues/new"
+                       target="_blank" rel="noopener noreferrer">
+                        Report an issue with this plugin
+                    </a>
+                </j:otherwise>
+            </j:choose>
+        </p>
     </div>
 </j:jelly>

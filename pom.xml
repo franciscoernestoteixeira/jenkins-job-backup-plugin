@@ -15,7 +15,7 @@
     <version>0.0.1</version>
     <packaging>hpi</packaging>
 
-    <name>Job Backup</name>
+    <name>Job Backup &amp; Restore</name>
     <url>https://github.com/franciscoernestoteixeira/jenkins-${project.artifactId}-plugin</url>
 
     <licenses>
