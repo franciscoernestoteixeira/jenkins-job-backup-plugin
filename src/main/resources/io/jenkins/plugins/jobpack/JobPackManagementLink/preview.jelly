@@ -1,0 +1,50 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form" xmlns:l="/lib/layout">
+    <l:layout title="Job Backup &amp; Restore">
+        <l:side-panel>
+            <l:app-bar title="Job Backup &amp; Restore"/>
+
+            <l:tasks>
+                <l:task title="Export" href="/manage/job-backup/"
+                        icon="symbol-cloud-download-outline plugin-ionicons-api"/>
+                <l:task title="Import" href="/manage/job-backup/import"
+                        icon="symbol-cloud-upload-outline plugin-ionicons-api"/>
+            </l:tasks>
+        </l:side-panel>
+
+        <l:main-panel>
+            <l:app-bar title="Preview Import"/>
+
+            <j:set var="sid" value="${request.getParameter('sessionId')}"/>
+
+            <div style="margin-bottom: 1em;">Import selected jobs and folders into this Jenkins instance.</div>
+
+            <f:form method="post" action="applySelected">
+                <input type="hidden" name="sessionId" value="${sid}"/>
+
+                <table class="jenkins-table">
+                    <thead>
+                        <th class="jenkins-table__cell--tight"/>
+                        <th>Full name</th>
+                        <th>Exists</th>
+                    </thead>
+                    <tbody>
+                        <j:forEach var="row" items="${it.candidates}">
+                            <tr>
+                                <td class="jenkins-table__cell--tight">
+                                    <f:checkbox name="selected" value="${row.fullName}"/>
+                                </td>
+                                <td>${row.fullName}</td>
+                                <td>${row.exists}</td>
+                            </tr>
+                        </j:forEach>
+                    </tbody>
+                </table>
+
+                <f:submit value="Apply selected"/>
+            </f:form>
+
+        </l:main-panel>
+    </l:layout>
+
+</j:jelly>

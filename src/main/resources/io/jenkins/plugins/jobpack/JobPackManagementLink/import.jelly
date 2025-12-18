@@ -1,0 +1,60 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form" xmlns:l="/lib/layout">
+    <l:layout title="Job Backup &amp; Restore">
+        <l:side-panel>
+            <l:app-bar title="Job Backup &amp; Restore"/>
+
+            <l:tasks>
+                <l:task title="Export" href="/manage/job-backup/"
+                        icon="symbol-cloud-download-outline plugin-ionicons-api"/>
+                <l:task title="Import" href="/manage/job-backup/import"
+                        icon="symbol-cloud-upload-outline plugin-ionicons-api"/>
+            </l:tasks>
+        </l:side-panel>
+
+        <l:main-panel>
+            <l:app-bar title="Import"/>
+
+            <div style="margin-bottom: 1em;">Upload a ZIP archive to see the jobs and folders that could be imported into this Jenkins instance.</div>
+
+            <f:form method="post" action="uploadZip" enctype="multipart/form-data">
+                <div style="margin-bottom: 2rem;">
+                    <f:entry title="File" field="zipFile">
+                        <f:file field="zipFile" accept=".zip" clazz="extra-class"/>
+                    </f:entry>
+
+                    <f:submit value="Upload"/>
+                </div>
+
+                <j:if test="${request.getParameter('sessionId') != null}">
+                    <j:set var="sid" value="${request.getParameter('sessionId')}"/>
+                    <j:set var="res" value="${it.readResult(sid).orElse(null)}"/>
+
+                    <j:if test="${res != null}">
+                        <f:section title="Last apply result">
+                            <p>Applied: ${res.applied.size()}</p>
+                            <p>Failures: ${res.failures.size()}</p>
+
+                            <j:if test="${res.failures.size() > 0}">
+                                <table class="jenkins-table">
+                                    <tr>
+                                        <th>Item</th>
+                                        <th>Error</th>
+                                    </tr>
+                                    <j:forEach var="f" items="${res.failures}">
+                                        <tr>
+                                            <td>${f.fullName}</td>
+                                            <td>${f.error}</td>
+                                        </tr>
+                                    </j:forEach>
+                                </table>
+                            </j:if>
+                        </f:section>
+                    </j:if>
+                </j:if>
+            </f:form>
+
+        </l:main-panel>
+    </l:layout>
+
+</j:jelly>
