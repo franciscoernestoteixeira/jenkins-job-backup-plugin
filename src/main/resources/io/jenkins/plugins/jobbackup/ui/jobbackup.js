@@ -1,37 +1,62 @@
 (function () {
+    "use strict";
+
+    // ---------- DOM helpers ----------
+
     function closestTable(el) {
-        return el.closest("table[data-jobbackup-table]");
+        return el && el.closest ? el.closest("table[data-jobbackup-table]") : null;
     }
 
     function rowOfCheckbox(cb) {
-        return cb.closest("tr");
+        return cb && cb.closest ? cb.closest("tr") : null;
     }
 
     function checkboxInRow(row) {
-        return row.querySelector("input.jobbackup-row-check, input[type='checkbox']");
+        if (!row) return null;
+        // Prefer explicit row checkbox class if you have it, fallback to any checkbox in the row
+        return row.querySelector("input.jobbackup-row-check") || row.querySelector("input[type='checkbox']");
     }
 
     function setState(cb, checked, indeterminate) {
+        if (!cb) return;
         cb.checked = !!checked;
         cb.indeterminate = !!indeterminate;
     }
 
+    function escapeAttrValue(v) {
+        // Prefer native CSS.escape when available
+        if (typeof CSS !== "undefined" && CSS.escape) return CSS.escape(String(v));
+        // Minimal safe fallback for attribute selectors
+        return String(v).replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+    }
+
+    function headerSelectAllCheckbox(table) {
+        if (!table) return null;
+
+        // Works with:
+        // 1) <input class="jobbackup-select-all">
+        // 2) Jenkins <f:checkbox name="_selectAll"> rendered in thead
+        // 3) Anywhere inside table header, as long as name matches
+        return (
+            table.querySelector("input.jobbackup-select-all[type='checkbox']") ||
+            table.querySelector("thead input[type='checkbox'][name='_selectAll']") ||
+            table.querySelector("input[type='checkbox'][name='_selectAll']")
+        );
+    }
+
+    // ---------- Tree helpers (folders/jobs) ----------
+
     function childrenOf(row, table) {
-        const id = row.dataset.id;
+        const id = row && row.dataset ? row.dataset.id : null;
         if (!id) return [];
-        return Array.from(table.querySelectorAll("tr[data-parent-id]"))
+        return Array.from(table.querySelectorAll("tbody tr[data-parent-id]"))
             .filter(r => r.dataset.parentId === id);
     }
 
     function parentOf(row, table) {
-        const pid = row.dataset.parentId;
+        const pid = row && row.dataset ? row.dataset.parentId : null;
         if (!pid) return null;
-        return table.querySelector(`tr[data-id="${cssEscape(pid)}"]`);
-    }
-
-    // Minimal CSS escaper for attribute selectors (good enough for job full names)
-    function cssEscape(s) {
-        return String(s).replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+        return table.querySelector(`tbody tr[data-id="${escapeAttrValue(pid)}"]`);
     }
 
     function cascadeDown(row, table, checked) {
@@ -45,15 +70,17 @@
         const folderCb = checkboxInRow(folderRow);
         const kids = childrenOf(folderRow, table);
 
+        if (!folderCb) return;
+
         if (kids.length === 0) {
-            // A folder with no children behaves like a leaf
+            // A folder without children behaves like a leaf
             setState(folderCb, folderCb.checked, false);
             return;
         }
 
-        const kidCbs = kids.map(checkboxInRow);
+        const kidCbs = kids.map(checkboxInRow).filter(Boolean);
 
-        const allChecked = kidCbs.every(c => c.checked && !c.indeterminate);
+        const allChecked = kidCbs.length > 0 && kidCbs.every(c => c.checked && !c.indeterminate);
         const noneSelected = kidCbs.every(c => !c.checked && !c.indeterminate);
 
         if (allChecked) setState(folderCb, true, false);
@@ -64,8 +91,7 @@
     function recomputeUpFrom(row, table) {
         let p = parentOf(row, table);
         while (p) {
-            // Only folders should be tri-stated; if you mark jobs with data-type="job", keep this guard
-            if (p.dataset.type === "folder") {
+            if (p.dataset && p.dataset.type === "folder") {
                 recomputeFolderFromChildren(p, table);
             }
             p = parentOf(p, table);
@@ -73,65 +99,73 @@
     }
 
     function recomputeHeaderSelectAll(table) {
-        const header = table.querySelector("input.jobbackup-select-all");
+        const header = headerSelectAllCheckbox(table);
         if (!header) return;
 
         const rows = Array.from(table.querySelectorAll("tbody tr"));
-        const cbs = rows.map(checkboxInRow);
+        const cbs = rows.map(checkboxInRow).filter(Boolean);
 
         const allChecked = cbs.length > 0 && cbs.every(c => c.checked && !c.indeterminate);
-        const noneSelected = cbs.every(c => !c.checked && !c.indeterminate);
+        const noneSelected = cbs.length === 0 || cbs.every(c => !c.checked && !c.indeterminate);
 
         if (allChecked) setState(header, true, false);
         else if (noneSelected) setState(header, false, false);
         else setState(header, false, true);
     }
 
+    // ---------- Public API (called from onclick) ----------
+
     function toggle(cb) {
+        if (!cb || cb.type !== "checkbox") return;
+
         const table = closestTable(cb);
         if (!table) return;
 
         const row = rowOfCheckbox(cb);
-        const isFolder = row && row.dataset.type === "folder";
+        const isFolder = row && row.dataset && row.dataset.type === "folder";
 
-        // If a folder is toggled, cascade to descendants
+        // Folder toggles cascade to descendants
         if (row && isFolder) {
             cascadeDown(row, table, cb.checked);
         } else {
-            // Ensure leaf never stays indeterminate
+            // Leaves should never remain indeterminate
             cb.indeterminate = false;
         }
 
-        // Recompute ancestors (folder parents can have ancestors too)
+        // Recompute ancestors
         if (row) {
             recomputeUpFrom(row, table);
         }
 
-        // Update header select-all state
+        // Recompute header state
         recomputeHeaderSelectAll(table);
     }
 
     function selectAllFromHeader(headerCb) {
+        if (!headerCb || headerCb.type !== "checkbox") return;
+
         const table = closestTable(headerCb);
         if (!table) return;
 
         const checked = headerCb.checked;
 
-        // Apply to all rows
+        // Apply only to body checkboxes (avoid touching header)
         table.querySelectorAll("tbody input[type='checkbox']").forEach(cb => {
             setState(cb, checked, false);
         });
 
-        // Recompute folders bottom-up:
-        // simplest: recomputeUp from every leaf; acceptable for moderate lists.
+        // Recompute folder states upward (safe and simple)
         const rows = Array.from(table.querySelectorAll("tbody tr"));
         rows.forEach(r => recomputeUpFrom(r, table));
 
+        // Ensure header is correct (checked/unchecked/indeterminate)
         recomputeHeaderSelectAll(table);
     }
 
+    // Expose for inline onclick usage:
     window.jobBackup = {
         toggle,
         selectAllFromHeader,
+        recomputeHeaderSelectAll, // optional: useful if you dynamically filter rows
     };
 })();

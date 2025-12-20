@@ -34,10 +34,15 @@
                     <thead>
                         <tr>
                             <th class="jenkins-table__cell--tight">
-                                <input type="checkbox"
-                                       class="jobbackup-select-all"
-                                       aria-label="Select all"
-                                       onclick="jobBackup.selectAllFromHeader(this)"/>
+                                <!-- Select/Deselect all -->
+                                <f:checkbox
+                                        name="_selectAll"
+                                        value="true"
+                                        checked="false"
+                                        cssClass="jobbackup-select-all"
+                                        aria-label="Select all"
+                                        onclick="jobBackup.selectAllFromHeader(this)">
+                                </f:checkbox>
                             </th>
                             <th>Full name</th>
                             <th>Exists</th>
