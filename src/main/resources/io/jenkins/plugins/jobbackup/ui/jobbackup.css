@@ -1,3 +1,27 @@
+.jobbackup-alert {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.jobbackup-item {
+    padding-left: 16px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.jobbackup-icon {
+    display: flex;
+    align-items: center;
+}
+
+.jobbackup-item-text {
+    display: flex;
+    align-items: center;
+    line-height: 1.4;
+}
+
 .jobbackup-icon svg {
     width: 16px;
     height: 16px;

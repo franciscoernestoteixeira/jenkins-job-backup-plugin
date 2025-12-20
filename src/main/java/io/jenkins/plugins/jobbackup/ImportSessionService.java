@@ -22,6 +22,24 @@ public class ImportSessionService {
         return Files.isDirectory(sessionDir(sessionId));
     }
 
+    public void deleteSession(String sessionId) throws IOException {
+        var dir = sessionDir(sessionId);
+        if (Files.notExists(dir)) {
+            return;
+        }
+
+        try (var walk = Files.walk(dir)) {
+            walk.sorted(Comparator.reverseOrder())
+                    .forEach(p -> {
+                        try {
+                            Files.deleteIfExists(p);
+                        } catch (IOException ignored) {
+                            // best-effort
+                        }
+                    });
+        }
+    }
+
     public Path sessionDir(String sessionId) {
         return baseDir.resolve(sessionId);
     }

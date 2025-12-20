@@ -1,6 +1,14 @@
 <?jelly escape-by-default='true'?>
-<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form" xmlns:l="/lib/layout">
+<j:jelly xmlns:j="jelly:core"
+         xmlns:f="/lib/form"
+         xmlns:l="/lib/layout"
+         xmlns:st="jelly:stapler">
+
     <l:layout title="Job Backup &amp; Restore">
+
+        <!-- Load shared CSS/JS once for this view -->
+        <st:adjunct includes="io.jenkins.plugins.jobbackup.ui.jobbackup"/>
+
         <l:side-panel>
             <l:app-bar title="Job Backup &amp; Restore"/>
 
@@ -14,6 +22,18 @@
 
         <l:main-panel>
             <l:app-bar title="Import"/>
+
+            <j:set var="error" value="${request.getParameter('error')}"/>
+            <j:if test="${error != null}">
+                <div class="jenkins-alert jenkins-alert-warning jobbackup-alert">
+                    <span class="jobbackup-icon">
+                        <l:icon src="symbol-warning-outline plugin-ionicons-api"/>
+                    </span>
+                    <span class="jobbackup-item-text">
+                        ${error}
+                    </span>
+                </div>
+            </j:if>
 
             <div style="margin-bottom: 1em;">Upload a ZIP archive to see the jobs and folders that could be imported
                 into this Jenkins instance.

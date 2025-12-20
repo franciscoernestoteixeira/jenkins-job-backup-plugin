@@ -6,7 +6,7 @@
 
     <l:layout title="Job Backup &amp; Restore">
 
-        <!-- Same shared JS -->
+        <!-- Load shared CSS/JS once for this view -->
         <st:adjunct includes="io.jenkins.plugins.jobbackup.ui.jobbackup"/>
 
         <l:side-panel>
@@ -22,6 +22,18 @@
 
         <l:main-panel>
             <l:app-bar title="Preview Import"/>
+
+            <j:set var="error" value="${request.getParameter('error')}"/>
+            <j:if test="${error != null}">
+                <div class="jenkins-alert jenkins-alert-warning jobbackup-alert">
+                    <span class="jobbackup-icon">
+                        <l:icon src="symbol-warning-outline plugin-ionicons-api"/>
+                    </span>
+                    <span class="jobbackup-item-text">
+                        ${error}
+                    </span>
+                </div>
+            </j:if>
 
             <j:set var="sid" value="${request.getParameter('sessionId')}"/>
 
@@ -61,13 +73,15 @@
                                                 onclick="jobBackup.toggle(this)"/>
                                 </td>
                                 <td>
-                                    <div style="padding-left: ${row.depth * 16}px; display: flex; align-items: center; gap: 6px;">
+                                    <div class="jobbackup-item" style="padding-left: ${row.depth * 16}px;">
                                         <span class="jobbackup-icon">
                                             <l:icon
                                                     src="${row.iconSymbol} plugin-ionicons-api"
-                                                    tooltip="${row.typeLabel}"/>
+                                                    tooltip="${row.type}"/>
                                         </span>
-                                        ${row.leafName}
+                                        <span class="jobbackup-item-text">
+                                            ${row.leafName}
+                                        </span>
                                     </div>
                                 </td>
                                 <td>${row.typeLabel}</td>

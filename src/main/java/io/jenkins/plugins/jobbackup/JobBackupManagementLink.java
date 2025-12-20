@@ -18,6 +18,8 @@ import org.kohsuke.stapler.interceptor.RequirePOST;
 import javax.servlet.ServletException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.time.Instant;
@@ -76,6 +78,36 @@ public class JobBackupManagementLink extends ManagementLink {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
     }
 
+    private static void redirectWithError(StaplerRequest req, StaplerResponse rsp, String relativePath, String message) throws IOException {
+        var encoded = URLEncoder.encode(message, StandardCharsets.UTF_8);
+        var base = req.getContextPath() + (relativePath.startsWith("/") ? relativePath : ("/" + relativePath));
+        var sep = base.contains("?") ? "&" : "?";
+
+        rsp.sendRedirect2(base + sep + "error=" + encoded);
+    }
+
+    private static void redirectToImportWithError(StaplerRequest req, StaplerResponse rsp, String message) throws IOException {
+        redirectWithError(req, rsp, "/manage/job-backup/import", message);
+    }
+
+    /**
+     * Best-effort cleanup for invalid/empty sessions.
+     * This avoids orphan session folders if the uploaded ZIP is empty/invalid.
+     */
+    private void tryDeleteSessionQuietly(String sessionId) {
+        if (sessionId == null || sessionId.isBlank()) {
+            return;
+        }
+
+        try {
+            // Add this method to ImportSessionService (recommended).
+            // If you already have an equivalent, call it here.
+            importSessionService.deleteSession(sessionId);
+        } catch (Exception ignored) {
+            // swallow: cleanup is best-effort only
+        }
+    }
+
     // ----------------------------
     // Export
 
@@ -83,20 +115,20 @@ public class JobBackupManagementLink extends ManagementLink {
         ensureAdmin();
 
         // 1) Real items (jobs + real folders)
-        List<Model.ItemRow> realRows = Jenkins.get().getAllItems(Item.class).stream()
+        var realRows = Jenkins.get().getAllItems(Item.class).stream()
                 .filter(Objects::nonNull)
                 .filter(i -> (i instanceof TopLevelItem) || (i instanceof Folder) || (i instanceof AbstractItem))
                 .map(Model.ItemRow::from)
                 .collect(Collectors.toList());
 
         // 2) Synthetic folder rows for all ancestors (so user can click folder paths)
-        Map<String, Model.ItemRow> byFullName = new HashMap<>();
+        var byFullName = new HashMap<String, Model.ItemRow>();
 
-        for (Model.ItemRow r : realRows) {
+        for (var r : realRows) {
             byFullName.put(r.getFullName(), r);
 
             // add ancestors as Folder rows if missing
-            String p = r.getParentFullName();
+            var p = r.getParentFullName();
             while (p != null && !p.isBlank()) {
                 byFullName.putIfAbsent(p, Model.ItemRow.folder(p));
                 p = parentOf(p);
@@ -110,30 +142,37 @@ public class JobBackupManagementLink extends ManagementLink {
     }
 
     private static String parentOf(String fullName) {
-        if (fullName == null) return null;
+        if (fullName == null) {
+            return null;
+        }
+
         int idx = fullName.lastIndexOf('/');
-        if (idx <= 0) return null;
+        if (idx <= 0) {
+            return null;
+        }
+
         return fullName.substring(0, idx);
     }
 
     private static Comparator<Model.ItemRow> itemRowComparator() {
-        return new Comparator<Model.ItemRow>() {
-            @Override
-            public int compare(Model.ItemRow a, Model.ItemRow b) {
-                int c = sortKey(a).compareToIgnoreCase(sortKey(b));
-                if (c != 0) return c;
-                return a.getFullName().compareToIgnoreCase(b.getFullName());
+        return (a, b) -> {
+            int c = sortKey(a).compareToIgnoreCase(sortKey(b));
+            if (c != 0) {
+                return c;
             }
+
+            return a.getFullName().compareToIgnoreCase(b.getFullName());
         };
     }
 
     private static String sortKey(Model.ItemRow r) {
-        String name = (r.getFullName() == null) ? "" : r.getFullName();
+        var name = (r.getFullName() == null) ? "" : r.getFullName();
 
         // Folder as prefix path so it sorts before its children
         if (r.isFolder() && !name.endsWith("/")) {
             return name + "/";
         }
+
         return name;
     }
 
@@ -144,7 +183,8 @@ public class JobBackupManagementLink extends ManagementLink {
         var selected = req.getParameterValues("selected");
 
         if (selected == null || selected.length == 0) {
-            rsp.sendError(400, "No items selected.");
+            // UX: validation feedback should be rendered as a Jenkins notification, not a Jetty error page.
+            redirectWithError(req, rsp, "/manage/job-backup/", "No items selected.");
             return;
         }
 
@@ -171,7 +211,8 @@ public class JobBackupManagementLink extends ManagementLink {
         var file = req.getFileItem("zipFile");
 
         if (file == null || file.getSize() == 0) {
-            rsp.sendError(400, "No ZIP uploaded.");
+            // UX: show a notification on the Import screen.
+            redirectToImportWithError(req, rsp, "No ZIP uploaded.");
             return;
         }
 
@@ -188,7 +229,21 @@ public class JobBackupManagementLink extends ManagementLink {
         var unzipDir = sessionDir.resolve("unzipped");
         Files.createDirectories(unzipDir);
 
-        ZipSlipSafeUnzip.unzip(uploaded, unzipDir);
+        try {
+            ZipSlipSafeUnzip.unzip(uploaded, unzipDir);
+        } catch (Exception e) {
+            tryDeleteSessionQuietly(sessionId);
+            redirectToImportWithError(req, rsp, "Invalid ZIP file (cannot unzip).");
+            return;
+        }
+
+        // IMPORTANT: if the ZIP unzips but contains nothing importable, fail fast.
+        var candidates = importSessionService.findCandidates(unzipDir);
+        if (candidates == null || candidates.isEmpty()) {
+            tryDeleteSessionQuietly(sessionId);
+            redirectToImportWithError(req, rsp, "ZIP has no importable jobs/folders (no config.xml entries found).");
+            return;
+        }
 
         rsp.sendRedirect(req.getContextPath() + "/manage/job-backup/preview?sessionId=" + sessionId);
     }
@@ -211,24 +266,34 @@ public class JobBackupManagementLink extends ManagementLink {
             return List.of();
         }
 
+        // If preview is hit with an invalid/expired session, do not throw a Jetty error page.
+        // doPreview() will redirect with an error; this is just a safety net for Jelly calls.
+        if (!importSessionService.sessionExists(sessionId)) {
+            return List.of();
+        }
+
         var unzipDir = importSessionService.unzipDir(sessionId);
         var candidates = importSessionService.findCandidates(unzipDir);
 
+        if (candidates == null || candidates.isEmpty()) {
+            return List.of();
+        }
+
         // Real rows from extracted items
-        List<Model.ImportCandidate> realRows = candidates.stream()
+        var realRows = candidates.stream()
                 .map(c -> {
                     boolean exists = Jenkins.get().getItemByFullName(c.fullName()) != null;
                     return Model.ImportCandidate.from(c.fullName(), c.configXmlPath().toString(), exists);
                 })
-                .collect(Collectors.toList());
+                .toList();
 
         // Add synthetic folders for all ancestors
-        Map<String, Model.ImportCandidate> byFullName = new HashMap<>();
+        var byFullName = new HashMap<String, Model.ImportCandidate>();
 
         for (Model.ImportCandidate r : realRows) {
             byFullName.put(r.getFullName(), r);
 
-            String p = r.getParentFullName();
+            var p = r.getParentFullName();
             while (p != null && !p.isBlank()) {
                 boolean folderExists = Jenkins.get().getItemByFullName(p) != null;
                 byFullName.putIfAbsent(p, Model.ImportCandidate.folder(p, folderExists));
@@ -243,18 +308,18 @@ public class JobBackupManagementLink extends ManagementLink {
     }
 
     private static Comparator<Model.ImportCandidate> importCandidateComparator() {
-        return new Comparator<Model.ImportCandidate>() {
-            @Override
-            public int compare(Model.ImportCandidate a, Model.ImportCandidate b) {
-                int c = sortKey(a).compareToIgnoreCase(sortKey(b));
-                if (c != 0) return c;
-                return a.getFullName().compareToIgnoreCase(b.getFullName());
+        return (a, b) -> {
+            int c = sortKey(a).compareToIgnoreCase(sortKey(b));
+            if (c != 0) {
+                return c;
             }
+
+            return a.getFullName().compareToIgnoreCase(b.getFullName());
         };
     }
 
     private static String sortKey(Model.ImportCandidate r) {
-        String name = (r.getFullName() == null) ? "" : r.getFullName();
+        var name = (r.getFullName() == null) ? "" : r.getFullName();
 
         // folders behave like prefix paths: "A/B/" sorts before "A/B/job1"
         if (r.isFolder() && !name.endsWith("/")) {
@@ -275,12 +340,19 @@ public class JobBackupManagementLink extends ManagementLink {
         var selected = req.getParameterValues("selected");
 
         if (sessionId == null || sessionId.isBlank()) {
-            rsp.sendError(400, "Missing sessionId.");
+            // UX: sessionId is required to apply a preview; keep the user on Import.
+            redirectToImportWithError(req, rsp, "Missing sessionId.");
+            return;
+        }
+
+        if (!importSessionService.sessionExists(sessionId)) {
+            redirectToImportWithError(req, rsp, "Unknown session.");
             return;
         }
 
         if (selected == null || selected.length == 0) {
-            rsp.sendError(400, "No items selected to apply.");
+            // UX: validation feedback should be rendered as a Jenkins notification.
+            redirectWithError(req, rsp, "/manage/job-backup/preview?sessionId=" + sessionId, "No items selected.");
             return;
         }
 
@@ -297,6 +369,25 @@ public class JobBackupManagementLink extends ManagementLink {
 
     public void doPreview(StaplerRequest req, StaplerResponse rsp) throws IOException, ServletException {
         ensureAdmin();
+
+        var sessionId = req.getParameter("sessionId");
+        if (sessionId == null || sessionId.isBlank()) {
+            redirectToImportWithError(req, rsp, "Missing sessionId.");
+            return;
+        }
+
+        if (!importSessionService.sessionExists(sessionId)) {
+            redirectToImportWithError(req, rsp, "Unknown session.");
+            return;
+        }
+
+        var unzipDir = importSessionService.unzipDir(sessionId);
+        var candidates = importSessionService.findCandidates(unzipDir);
+
+        if (candidates == null || candidates.isEmpty()) {
+            redirectToImportWithError(req, rsp, "Nothing to preview: this session contains no importable jobs/folders.");
+            return;
+        }
 
         req.getView(this, "preview.jelly").forward(req, rsp);
     }
@@ -318,6 +409,14 @@ public class JobBackupManagementLink extends ManagementLink {
     // Expose readResult to Jelly (since field is private)
     public Optional<Model.ApplyResult> readResult(@QueryParameter String sessionId) {
         ensureAdmin();
+
+        if (sessionId == null || sessionId.isBlank()) {
+            return Optional.empty();
+        }
+
+        if (!importSessionService.sessionExists(sessionId)) {
+            return Optional.empty();
+        }
 
         return importSessionService.readResult(sessionId);
     }
