@@ -45,6 +45,7 @@
                                 </f:checkbox>
                             </th>
                             <th>Full name</th>
+                            <th>Type</th>
                             <th>Exists</th>
                         </tr>
                     </thead>
@@ -63,12 +64,13 @@
                                     <div style="padding-left: ${row.depth * 16}px; display: flex; align-items: center; gap: 6px;">
                                         <span class="jobbackup-icon">
                                             <l:icon
-                                                    src="${row.folder ? 'symbol-folder-outline' : 'symbol-document-text-outline'} plugin-ionicons-api"
-                                                    tooltip="${row.folder ? 'Folder' : 'Job'}"/>
+                                                    src="${row.iconSymbol} plugin-ionicons-api"
+                                                    tooltip="${row.typeLabel}"/>
                                         </span>
                                         ${row.leafName}
                                     </div>
                                 </td>
+                                <td>${row.typeLabel}</td>
                                 <td>${row.exists}</td>
                             </tr>
                         </j:forEach>

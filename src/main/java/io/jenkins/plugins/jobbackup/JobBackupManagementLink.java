@@ -9,7 +9,6 @@ import hudson.model.ManagementLink;
 import hudson.model.TopLevelItem;
 import hudson.util.FormValidation;
 import jenkins.model.Jenkins;
-import org.antlr.v4.runtime.misc.NotNull;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.Stapler;
 import org.kohsuke.stapler.StaplerRequest;
