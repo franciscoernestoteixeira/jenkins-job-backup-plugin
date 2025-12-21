@@ -16,7 +16,33 @@
     <packaging>hpi</packaging>
 
     <name>Job Backup &amp; Restore</name>
+    <description>
+        Export selected Jenkins jobs and folders into a ZIP archive and import them back into a Jenkins instance.
+    </description>
     <url>https://github.com/franciscoernestoteixeira/jenkins-${project.artifactId}-plugin</url>
+
+    <!-- Required/expected metadata for Jenkins plugin hosting and public pages -->
+    <scm>
+        <!-- Use https (not git://) -->
+        <connection>scm:git:https://github.com/franciscoernestoteixeira/jenkins-job-backup-plugin.git</connection>
+        <developerConnection>scm:git:https://github.com/franciscoernestoteixeira/jenkins-job-backup-plugin.git</developerConnection>
+        <url>https://github.com/franciscoernestoteixeira/jenkins-job-backup-plugin</url>
+        <!-- Common convention for Jenkins plugins; release tooling will set tags as needed -->
+        <tag>HEAD</tag>
+    </scm>
+
+    <issueManagement>
+        <system>GitHub Issues</system>
+        <url>https://github.com/franciscoernestoteixeira/jenkins-job-backup-plugin/issues</url>
+    </issueManagement>
+
+    <developers>
+        <developer>
+            <id>franciscoernestoteixeira</id>
+            <name>Francisco Ernesto Teixeira</name>
+            <url>https://github.com/franciscoernestoteixeira</url>
+        </developer>
+    </developers>
 
     <licenses>
         <license>
@@ -39,22 +65,22 @@
     </properties>
 
     <dependencies>
-        <!-- Folder support (CloudBees Folders plugin) -->
+        <!--
+        CloudBees Folders plugin
+        Required to enumerate, export, and restore jobs organized inside Jenkins folders.
+        Provides Folder and ItemGroup APIs used by this plugin to traverse job hierarchies.
+        -->
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>cloudbees-folder</artifactId>
             <version>6.1042.v37b_8229708e4</version>
         </dependency>
 
-        <!-- JSON API (optional, used by many Jenkins plugins) -->
         <!--
-        <dependency>
-            <groupId>org.jenkins-ci.plugins</groupId>
-            <artifactId>json-api</artifactId>
-            <version>20250517-173.v596efb_962a_31</version>
-        </dependency>
+        Ionicons API
+        Used to reference Ionicons SVG icons in Jelly views and UI components
+        without bundling static icon assets into the plugin.
         -->
-
         <dependency>
             <groupId>io.jenkins.plugins</groupId>
             <artifactId>ionicons-api</artifactId>
