@@ -1,0 +1,27 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "plugin: build hpi",
+      "type": "shell",
+      "command": "mvn",
+      "args": ["-B", "-ntp", "-s", "${workspaceFolder}/settings.xml", "clean", "package"],
+      "group": "build"
+    },
+    {
+      "label": "plugin: build hpi (skip tests)",
+      "type": "shell",
+      "command": "mvn",
+      "args": ["-B", "-ntp", "-s", "${workspaceFolder}/settings.xml", "clean", "package", "-DskipTests"],
+      "group": "build"
+    },
+    {
+      "label": "plugin: deploy hpi to jenkins",
+      "type": "shell",
+      "command": "bash",
+      "args": ["-lc", ".vscode/deploy.sh"],
+      "dependsOn": ["plugin: build hpi (skip tests)"],
+      "group": "build"
+    }
+  ]
+}

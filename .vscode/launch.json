@@ -1,0 +1,21 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Plugin: Build HPI",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/.vscode/noop.js",
+      "preLaunchTask": "plugin: build hpi",
+      "internalConsoleOptions": "neverOpen"
+    },
+    {
+      "name": "Plugin: Build + Deploy + Safe Restart (Dev Jenkins)",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/.vscode/noop.js",
+      "preLaunchTask": "plugin: deploy hpi to jenkins (cli + safe-restart)",
+      "internalConsoleOptions": "neverOpen"
+    }
+  ]
+}
