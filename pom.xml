@@ -53,12 +53,6 @@
         <maven.compiler.release>17</maven.compiler.release>
 
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-
-        <!-- Jenkins Plugin BOM for the 2.528.x line.
-             Pick a current released BOM version for bom-2.528.x.
-             Example from Dec 06, 2025:
-        -->
-        <bom.version>5750.vec44cb_c78352</bom.version>
     </properties>
 
     <!-- Required by hosting checker: use BOM and remove explicit dependency versions -->
@@ -67,7 +61,7 @@
             <dependency>
                 <groupId>io.jenkins.tools.bom</groupId>
                 <artifactId>bom-${jenkins.baseline}.x</artifactId>
-                <version>${bom.version}</version>
+                <version>5804.v80587a_38d937</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>

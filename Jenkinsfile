@@ -1,5 +1,5 @@
 #!/usr/bin/env groovy
 buildPlugin(
   useContainerAgent: true,
-  configurations: [[platform: 'linux', jdk: 17]]
+  configurations: [[platform: 'linux', jdk: 21]]
 )
