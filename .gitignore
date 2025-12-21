@@ -66,3 +66,6 @@ build/
 
 # Maven
 /repository/
+
+# Jenkins requirement
+/work/

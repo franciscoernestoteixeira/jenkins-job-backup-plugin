@@ -12,37 +12,17 @@
 
     <groupId>io.jenkins.plugins</groupId>
     <artifactId>job-backup</artifactId>
-    <version>0.0.2</version>
+
+    <!-- CD-enabled versioning (required by hosting checker):
+         - Snapshot builds: 999999-SNAPSHOT
+         - Release builds: computed by the git changelist extension / CD workflow
+    -->
+    <version>${changelist}</version>
+
     <packaging>hpi</packaging>
 
     <name>Job Backup &amp; Restore</name>
-    <description>
-        Export selected Jenkins jobs and folders into a ZIP archive and import them back into a Jenkins instance.
-    </description>
     <url>https://github.com/franciscoernestoteixeira/jenkins-${project.artifactId}-plugin</url>
-
-    <!-- Required/expected metadata for Jenkins plugin hosting and public pages -->
-    <scm>
-        <!-- Use https (not git://) -->
-        <connection>scm:git:https://github.com/franciscoernestoteixeira/jenkins-job-backup-plugin.git</connection>
-        <developerConnection>scm:git:https://github.com/franciscoernestoteixeira/jenkins-job-backup-plugin.git</developerConnection>
-        <url>https://github.com/franciscoernestoteixeira/jenkins-job-backup-plugin</url>
-        <!-- Common convention for Jenkins plugins; release tooling will set tags as needed -->
-        <tag>HEAD</tag>
-    </scm>
-
-    <issueManagement>
-        <system>GitHub Issues</system>
-        <url>https://github.com/franciscoernestoteixeira/jenkins-job-backup-plugin/issues</url>
-    </issueManagement>
-
-    <developers>
-        <developer>
-            <id>franciscoernestoteixeira</id>
-            <name>Francisco Ernesto Teixeira</name>
-            <url>https://github.com/franciscoernestoteixeira</url>
-        </developer>
-    </developers>
 
     <licenses>
         <license>
@@ -52,39 +32,58 @@
     </licenses>
 
     <properties>
-        <!-- Jenkins baseline -->
-        <jenkins.version>2.528.3</jenkins.version>
+        <!-- Required by hosting checker: define baseline and use it in jenkins.version and BOM artifactId -->
+        <jenkins.baseline>2.528</jenkins.baseline>
+        <jenkins.version>${jenkins.baseline}.3</jenkins.version>
 
-        <!-- Java compatibility: build with JDK 21, emit Java 17 bytecode -->
+        <!-- Required by hosting checker when CD is enabled -->
+        <changelist>999999-SNAPSHOT</changelist>
+
+        <!-- Required by hosting checker: prevent accidental bundling of third-party libraries -->
+        <hpi.strictBundledArtifacts>true</hpi.strictBundledArtifacts>
+
+        <!-- Java compatibility: emit Java 17 bytecode -->
         <maven.compiler.release>17</maven.compiler.release>
-        <maven.compiler.source>17</maven.compiler.source>
-        <maven.compiler.target>17</maven.compiler.target>
-        <java.level>17</java.level>
 
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+        <!-- Jenkins Plugin BOM for the 2.528.x line.
+             Pick a current released BOM version for bom-2.528.x.
+             Example from Dec 06, 2025:
+        -->
+        <bom.version>5750.vec44cb_c78352</bom.version>
     </properties>
 
+    <!-- Required by hosting checker: use BOM and remove explicit dependency versions -->
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>io.jenkins.tools.bom</groupId>
+                <artifactId>bom-${jenkins.baseline}.x</artifactId>
+                <version>${bom.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
     <dependencies>
-        <!--
-        CloudBees Folders plugin
-        Required to enumerate, export, and restore jobs organized inside Jenkins folders.
-        Provides Folder and ItemGroup APIs used by this plugin to traverse job hierarchies.
+        <!-- Folder support (CloudBees Folders plugin).
+             Needed because this plugin enumerates/exports/imports nested Folder hierarchies.
+             Version is managed by the Jenkins Plugin BOM (do not specify it here).
         -->
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>cloudbees-folder</artifactId>
-            <version>6.1042.v37b_8229708e4</version>
         </dependency>
 
-        <!--
-        Ionicons API
-        Used to reference Ionicons SVG icons in Jelly views and UI components
-        without bundling static icon assets into the plugin.
+        <!-- Ionicons API.
+             Provides Jenkins-side access to Ionicons SVG assets used by the Jelly/UI layer.
+             Version is managed by the Jenkins Plugin BOM (do not specify it here).
         -->
         <dependency>
             <groupId>io.jenkins.plugins</groupId>
             <artifactId>ionicons-api</artifactId>
-            <version>94.vcc3065403257</version>
         </dependency>
     </dependencies>
 
@@ -96,7 +95,7 @@
                 <artifactId>maven-hpi-plugin</artifactId>
             </plugin>
 
-            <!-- Enforce Java compatibility -->
+            <!-- Enforce Java compatibility (17+) -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-enforcer-plugin</artifactId>
@@ -119,5 +118,4 @@
             </plugin>
         </plugins>
     </build>
-
 </project>

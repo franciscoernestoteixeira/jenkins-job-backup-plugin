@@ -1,0 +1,15 @@
+name: Jenkins Security Scan
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  security-events: write
+  contents: read
+
+jobs:
+  security-scan:
+    uses: jenkinsci/.github/.github/workflows/jenkins-security-scan.yml@master
