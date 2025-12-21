@@ -23,6 +23,13 @@
 
     <name>Job Backup &amp; Restore</name>
     <url>https://github.com/franciscoernestoteixeira/jenkins-${project.artifactId}-plugin</url>
+ 
+     <scm>
+        <connection>scm:git:https://github.com/franciscoernestoteixeira/jenkins-job-backup-plugin.git</connection>
+        <developerConnection>scm:git:https://github.com/franciscoernestoteixeira/jenkins-job-backup-plugin.git</developerConnection>
+        <url>https://github.com/franciscoernestoteixeira/jenkins-job-backup-plugin</url>
+        <tag>HEAD</tag>
+    </scm>
 
     <licenses>
         <license>
