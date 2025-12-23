@@ -5,14 +5,14 @@
       "label": "plugin: build hpi",
       "type": "shell",
       "command": "mvn",
-      "args": ["-B", "-ntp", "-s", "${workspaceFolder}/settings.xml", "clean", "package"],
+      "args": ["-B", "-ntp", "clean", "package"],
       "group": "build"
     },
     {
       "label": "plugin: build hpi (skip tests)",
       "type": "shell",
       "command": "mvn",
-      "args": ["-B", "-ntp", "-s", "${workspaceFolder}/settings.xml", "clean", "package", "-DskipTests"],
+      "args": ["-B", "-ntp", "clean", "package", "-DskipTests"],
       "group": "build"
     },
     {

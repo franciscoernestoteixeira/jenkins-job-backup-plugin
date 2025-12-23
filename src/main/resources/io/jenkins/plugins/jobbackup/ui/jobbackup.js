@@ -113,7 +113,7 @@
         else setState(header, false, true);
     }
 
-    // ---------- Public API (called from onclick) ----------
+    // ---------- CSP-safe behavior (no inline onclick) ----------
 
     function toggle(cb) {
         if (!cb || cb.type !== "checkbox") return;
@@ -162,10 +162,55 @@
         recomputeHeaderSelectAll(table);
     }
 
-    // Expose for inline onclick usage:
+    function applyIndentation(table) {
+        if (!table) return;
+
+        table.querySelectorAll(".jobbackup-item[data-jobbackup-depth]").forEach(function (el) {
+            let depth = parseInt(el.getAttribute("data-jobbackup-depth") || "0", 10);
+            if (Number.isNaN(depth) || depth < 0) depth = 0;
+            el.style.paddingLeft = String(depth * 16) + "px";
+        });
+    }
+
+    function bindTable(table) {
+        if (!table || table.dataset.jobbackupBound === "true") return;
+        table.dataset.jobbackupBound = "true";
+
+        // Header select-all
+        const header = headerSelectAllCheckbox(table);
+        if (header) {
+            header.addEventListener("change", function () {
+                selectAllFromHeader(header);
+            });
+        }
+
+        // Row checkboxes
+        table.querySelectorAll("tbody input.jobbackup-row-check[type='checkbox']").forEach(function (cb) {
+            cb.addEventListener("change", function () {
+                toggle(cb);
+            });
+        });
+
+        applyIndentation(table);
+        recomputeHeaderSelectAll(table);
+    }
+
+    function init() {
+        document.querySelectorAll("table[data-jobbackup-table]").forEach(function (table) {
+            bindTable(table);
+        });
+    }
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", init);
+    } else {
+        init();
+    }
+
+    // Backwards compatibility: if any old Jelly still calls window.jobBackup.* it will keep working.
     window.jobBackup = {
         toggle,
         selectAllFromHeader,
-        recomputeHeaderSelectAll, // optional: useful if you dynamically filter rows
+        recomputeHeaderSelectAll
     };
 })();

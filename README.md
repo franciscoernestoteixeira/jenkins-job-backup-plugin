@@ -110,21 +110,6 @@ This plugin is developed in:
 
 (See the GitHub repository for source, issues, and contribution workflow.)
 
-### Maven Setup: `settings.xml` and local `repositories/`
-To simplify dependency resolution for plugin development, this repository includes a `settings.xml` that configures Maven repositories used by the project.
-
-In addition:
-- A **`repositories/` folder must exist in the project root** (as referenced by the project’s Maven setup).
-
-Typical usage:
-
-```bash
-mvn -s settings.xml clean verify
-```
-
-If you use an IDE:
-- Configure Maven to use the repository’s `settings.xml`.
-
 ### UI References (Jenkins)
 These references are useful when developing or improving the plugin UI:
 

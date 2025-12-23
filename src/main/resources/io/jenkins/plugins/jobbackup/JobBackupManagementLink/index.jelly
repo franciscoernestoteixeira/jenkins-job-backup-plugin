@@ -35,7 +35,7 @@
                 </div>
             </j:if>
 
-            <div style="margin-bottom: 1em;">Export selected jobs and folders into a ZIP archive.</div>
+            <div class="jobbackup-spacer">Export selected jobs and folders into a ZIP archive.</div>
 
             <f:form method="post" action="exportZip">
                 <table class="jenkins-table" data-jobbackup-table="export">
@@ -49,8 +49,7 @@
                                         checked="false"
                                         cssClass="jobbackup-select-all"
                                         aria-label="Select all"
-                                        onclick="jobBackup.selectAllFromHeader(this)">
-                                </f:checkbox>
+                                        data-jobbackup-action="select-all"/>
                             </th>
                             <th>Full name</th>
                             <th>Type</th>
@@ -65,10 +64,11 @@
                                     <f:checkbox name="selected"
                                                 value="${row.fullName}"
                                                 cssClass="jobbackup-row-check"
-                                                onclick="jobBackup.toggle(this)"/>
+                                                data-jobbackup-action="toggle-row"/>
                                 </td>
                                 <td>
-                                    <div class="jobbackup-item" style="padding-left: ${row.depth * 16}px;">
+                                    <div class="jobbackup-item"
+                                         data-jobbackup-depth="${row.depth}">
                                         <span class="jobbackup-icon">
                                             <l:icon
                                                     src="${row.iconSymbol} plugin-ionicons-api"

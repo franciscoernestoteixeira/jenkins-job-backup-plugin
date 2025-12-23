@@ -4,8 +4,12 @@
     gap: 8px;
 }
 
+.jobbackup-spacer {
+    margin-bottom: 1em;
+}
+
 .jobbackup-item {
-    padding-left: 16px;
+    /* Indentation is computed in adjunct JS via data-jobbackup-depth */
     display: flex;
     align-items: center;
     gap: 6px;

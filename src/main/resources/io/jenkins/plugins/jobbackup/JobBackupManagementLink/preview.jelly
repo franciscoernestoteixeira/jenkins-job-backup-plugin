@@ -37,7 +37,7 @@
 
             <j:set var="sid" value="${request.getParameter('sessionId')}"/>
 
-            <div style="margin-bottom: 1em;">Import selected jobs and folders into this Jenkins instance.</div>
+            <div class="jobbackup-spacer">Import selected jobs and folders into this Jenkins instance.</div>
 
             <f:form method="post" action="applySelected">
                 <input type="hidden" name="sessionId" value="${sid}"/>
@@ -53,8 +53,7 @@
                                         checked="false"
                                         cssClass="jobbackup-select-all"
                                         aria-label="Select all"
-                                        onclick="jobBackup.selectAllFromHeader(this)">
-                                </f:checkbox>
+                                        data-jobbackup-action="select-all"/>
                             </th>
                             <th>Full name</th>
                             <th>Type</th>
@@ -70,10 +69,11 @@
                                     <f:checkbox name="selected"
                                                 value="${row.fullName}"
                                                 cssClass="jobbackup-row-check"
-                                                onclick="jobBackup.toggle(this)"/>
+                                                data-jobbackup-action="toggle-row"/>
                                 </td>
                                 <td>
-                                    <div class="jobbackup-item" style="padding-left: ${row.depth * 16}px;">
+                                    <div class="jobbackup-item"
+                                         data-jobbackup-depth="${row.depth}">
                                         <span class="jobbackup-icon">
                                             <l:icon
                                                     src="${row.iconSymbol} plugin-ionicons-api"
